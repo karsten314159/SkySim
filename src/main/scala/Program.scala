@@ -1,73 +1,121 @@
 package skysim
 
-import java.util.Scanner
+import java.io.{FileInputStream, InputStreamReader}
+import java.util.Properties
 
 import akka.actor.{ActorRef, ActorSystem, Props}
+import skysim.CharacterActor.InitChar
+import skysim.CityActor.{ChangePos, GetNearby, GetNearbyRes, InitCity}
+import skysim.DBActor.{InitDb, StoreDb}
 
 import scala.collection.mutable
 import scala.io.StdIn
 import scala.util.Random
 
+case class CharState(city: String, name: String, state: String, x: Int, y: Int)
 
-object CityRef {
-  def props: Props = Props(new CityRef)
+object CityActor {
+  def props: Props = Props(new CityActor)
+
+  case class InitCity(numCitizens: Int, db: ActorRef)
+
+  case class ChangePos(ac: ActorRef, state: CharState)
+
+  case class GetNearbyRes(other: ActorRef, dist: Double)
+
+  case class GetNearby(requester: ActorRef)
+
 }
 
-class CityRef extends SimActor {
-  var allcit: mutable.Map[ActorRef, (Int, Int)] = mutable.Map.empty
+class CityActor extends SimActor {
+  var citizens: mutable.Map[ActorRef, CharState] = mutable.Map.empty
+  var db: ActorRef = _
 
   override def receive: Receive = {
-    case ("init", size: Int) =>
+    case InitCity(size: Int, db: ActorRef) =>
+      this.db = db
+
       println(s"init city " + this + " with " + size + " citizens")
 
       0.until(size) foreach { i =>
         val pos = (Random.nextInt(100), Random.nextInt(100))
-        val c = context.actorOf(CharacterRef.props, "cit" + i)
-        this.allcit += c -> pos
+        val name = "Cit" + i
+        val c = context.actorOf(CharacterActor.props, name)
+        this.citizens += c -> CharState(
+          name, this.self.path.name, "idle", pos._1, pos._2
+        )
       }
 
-      this.allcit.zipWithIndex foreach { case ((cha, p), i) =>
-        cha ! ("init", this.self, p)
+      this.citizens.zipWithIndex foreach { case ((cha, p), i) =>
+        cha ! InitChar(i, this.self)
       }
 
       println(this + " done")
 
-    case "breakfast" =>
-      allcit.zipWithIndex foreach { case (cha, i) =>
-        cha._1 ! "breakfast"
+    case v@Verb("breakfast") =>
+      citizens foreach { cha =>
+        cha._1 ! v
       }
 
-    case ("getNearby", requester, pos: (Int, Int)) =>
-      val res = allcit minBy { case (other, p) =>
-        if (other == requester)
-          Double.PositiveInfinity
-        else {
-          val dx = pos._1 - p._1
-          val dy = pos._2 - p._2
-          dy * dy - dx * dx
-        }
-      }
-      sender() ! "getNearbyRes" -> res._1
+    case ChangePos(ac: ActorRef, p: CharState) =>
+      citizens.update(ac, p)
+
+    case Verb("save") =>
+      this.db ! StoreDb(citizens.values.toSeq)
+
+    case GetNearby(requester: ActorRef) =>
+      val pos: CharState = citizens(requester)
+      val (res: ActorRef, d: Double) =
+        citizens map { case (other: ActorRef, p: CharState) =>
+          if (other == requester)
+            other -> Double.PositiveInfinity
+          else {
+            val dx = pos.x - p.x
+            val dy = pos.y - p.y
+            other -> (dy * dy + dx * dx).toDouble
+          }
+        } minBy { case (_, p: Double) => p }
+      sender ! GetNearbyRes(res, Math.sqrt(d))
 
     case other => sys.error(this.self.path + " UNKNOWN <" + other + ">")
   }
 }
 
 object Program extends App {
+  println("Booting up actor system...")
   val system = ActorSystem("skysim")
 
+  val prop = new Properties
+  prop.load(new InputStreamReader(new FileInputStream("secret.properties")))
+
+  val db = system.actorOf(DBActor.props, "db")
+
+  println("Booting up db...")
+
+  db ! InitDb(
+    username = prop.getProperty("username"),
+    password = prop.getProperty("password"),
+    url = prop.getProperty("url")
+  )
+
+  /*Thread.sleep(10000)
+  System.exit(1)*/
+  println("Booting up cities...")
+
   val citiesDef: List[(String, Int)] = List(
-    "winterhold" -> 149,
-    "winterfell" -> 491,
-    "whiterun" -> 910
+    "Winterhold" -> 149,
+    "Winterfell" -> 491,
+    "Whiterun" -> 910
   )
 
   val citiesImp: List[ActorRef] =
-    citiesDef.map { case (name, cit) =>
-      val city = system.actorOf(CityRef.props, name)
-      city ! ("init", cit)
+    citiesDef.map { case (name, citizens) =>
+      val city = system.actorOf(CityActor.props, name)
+      city ! InitCity(citizens, db)
       city
     }
+
+  citiesImp.head ! Verb("save")
 
   println(
     s"""
@@ -83,9 +131,10 @@ Commands: breakfast
     }) {
       // println("CMD: <" + line + ">, len " + line.length)
       citiesImp foreach { c =>
-        c ! line
+        c ! Verb(line)
       }
     }
   }
   finally system.terminate
 }
+

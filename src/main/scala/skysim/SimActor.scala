@@ -2,8 +2,10 @@ package skysim
 
 import akka.actor.Actor
 
+case class Verb(string: String)
+
 abstract class SimActor extends Actor {
-  override def toString(): String = {
+  override def toString: String = {
     this.self.path.name + " of " + this.self.path.parent.name
   }
 }
