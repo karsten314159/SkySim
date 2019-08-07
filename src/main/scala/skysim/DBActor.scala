@@ -68,7 +68,6 @@ class DBActor extends SimActor {
           //val host = rs.getString("host")
           //val user = rs.getString("user")
           //println("host = %s, user = %s".format(host, user))
-
         }
         println("skysim: " + count)
       } catch {
@@ -79,23 +78,39 @@ class DBActor extends SimActor {
       }
 
     case StoreDb(seq) =>
+      val now = System.currentTimeMillis
+      val values = seq.map { x =>
+        "(" + r(x.name) + ", " + r(x.city) + ", " + r(x.state) + ", " + x.x + ", " + x.y + ", " + r(x.data) + ", " + now + ")"
+      }.mkString(", ")
 
-      try {
-        val statement = connection.createStatement
-        val now = System.currentTimeMillis
-        val sql =
-          s"""
-INSERT INTO skysim (name, parent, state, x, y, data, timestamp)
-VALUES ${
-            seq.map(x =>
-              "(" + r(x.name) + ", " + r(x.city) + ", " + r(x.state) + ", " + x.x + ", " + x.y + ", '[]', " + now + ")"
-            ).mkString(", ")
-          }
+      val sql =
+        s"""
+INSERT INTO skysim (parent, name, state, x, y, data, timestamp)
+VALUES $values
 ON DUPLICATE KEY UPDATE parent=parent,x=x,y=y,state=state,data=data,timestamp=timestamp;
           """
-        println(sql)
-        val rs = statement.executeUpdate(sql)
+      this.self ! Verb(sql)
 
+    case Verb(sql) =>
+      try {
+        val statement = connection.createStatement
+        println(sql)
+        if (sql.toLowerCase.startsWith("select ")) {
+          val rs = statement.executeQuery(sql)
+          val meta = rs.getMetaData
+          val fields = 1.to(meta.getColumnCount).map(i =>
+            meta.getColumnName(i)
+          )
+          var i = 0
+          while (rs.next) {
+            println(i + ": " + fields.map(x => x + " -> " + rs.getObject(x)).mkString(", "))
+            i += 1
+          }
+
+        } else {
+          val res = statement.executeUpdate(sql)
+          println("sql update: " + res)
+        }
       } catch {
         case e: Exception =>
           e.printStackTrace()

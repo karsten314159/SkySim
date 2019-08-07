@@ -2,12 +2,18 @@ package skysim
 
 import akka.actor.{ActorRef, Props}
 import skysim.CharacterActor.InitChar
-import skysim.CityActor.{GetNearby, GetNearbyRes}
+import skysim.CityActor.{ChangePos, GetNearby, GetNearbyRes}
+
+case class CharState(
+                      city: String, name: String, state: String, x: Int, y: Int,
+                      data: String
+                    )
 
 object CharacterActor {
   def props: Props = Props(new CharacterActor)
 
   case class InitChar(num: Int, parent: ActorRef)
+
 }
 
 class CharacterActor extends SimActor {
@@ -27,8 +33,9 @@ class CharacterActor extends SimActor {
     case Verb("breakfast") =>
       parent ! GetNearby(this.self) //, pos)
 
-    case GetNearbyRes(actorRef: ActorRef, d: Double) =>
-      println(s"char " + this + " eats breakfast with " + actorRef.path.name + ", d:" + d)
+    case GetNearbyRes(selfState, other, otherState, dist) =>
+      println(s"char " + this + " eats breakfast with " + other.path.name + ", d:" + dist)
+      parent ! ChangePos(self, selfState.copy(data = "breakfast with " + other.path.name))
 
     case other => sys.error(this.self.path + " UNKNOWN " + other)
   }
