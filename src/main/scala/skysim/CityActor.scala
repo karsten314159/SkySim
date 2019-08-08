@@ -30,8 +30,7 @@ class CityActor extends SimActor {
   var db: ActorRef = _
   val names: mutable.Set[String] = mutable.Set[String]()
 
-  def name(i: Int): String = {
-    val random = new Random(i)
+  def name(random: Random): String = {
     val vowels = "AEIOU"
     val consonants = "BCDFGHJKLMNPQRSTVWYZ"
     val name =
@@ -57,11 +56,13 @@ class CityActor extends SimActor {
       println(s"init city " + this + " with " + size + " citizens")
 
       0.until(size) foreach { i =>
-        val pos = (Random.nextInt(100), Random.nextInt(100))
-        val nameVal = name(i)
+        val rnd = new Random(i)
+        val nameVal = name(rnd)
+        val (x, y) = (rnd.nextInt(100), rnd.nextInt(100))
+
         val c = context.actorOf(CharacterActor.props, nameVal)
         this.citizens += c -> CharState(
-          nameVal, this.self.path.name, "idle", pos._1, pos._2, Map.empty
+          nameVal, this.self.path.name, "idle", x, y, Map.empty
         )
       }
 
