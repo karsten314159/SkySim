@@ -65,6 +65,7 @@ class CityActor extends SimActor {
 
       this.citizens.zipWithIndex foreach { case ((cha, p), i) =>
         cha ! InitChar(i, this.self)
+          // TODO get Job seed
       }
 
       println(this + " done")

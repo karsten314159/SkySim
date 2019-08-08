@@ -3,14 +3,12 @@ package skysim
 import java.io.{FileInputStream, InputStreamReader}
 import java.util.Properties
 
-import akka.actor.{ActorRef, ActorSystem, Props}
-import skysim.CharacterActor.InitChar
-import skysim.CityActor.{ChangePos, GetNearby, GetNearbyRes, InitCity}
-import skysim.DBActor.{InitDb, StoreDb}
+import akka.actor.{ActorRef, ActorSystem}
+import skysim.CityActor.InitCity
+import skysim.DBActor.InitDb
+import skysim.JobActor.{GetJob, InitJobs}
 
-import scala.collection.mutable
 import scala.io.StdIn
-import scala.util.Random
 
 
 object Program extends App {
@@ -29,6 +27,10 @@ object Program extends App {
     password = prop.getProperty("password"),
     url = prop.getProperty("url")
   )
+  val job = system.actorOf(JobActor.props)
+  job ! InitJobs(db)
+
+  // job ! GetJob(42)
 
   /*Thread.sleep(10000)
   System.exit(1)*/
