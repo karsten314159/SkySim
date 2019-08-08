@@ -25,7 +25,7 @@ object DBActor {
                 )
 
   case class SqlResult(
-                        results: List[Map[String, Any]], affected
+                        results: List[Map[String, Any]], affected: Int
                       )
 
   val setupSQL: String =
