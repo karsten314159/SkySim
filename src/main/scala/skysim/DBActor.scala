@@ -1,10 +1,11 @@
 package skysim
 
-import java.sql.{Connection, DriverManager}
+import java.sql.{Connection, DriverManager, Statement}
 
 import akka.actor.Props
 import com.mysql.cj.jdbc.NonRegisteringDriver
-import skysim.DBActor.{InitDb, SqlResult, StoreDb}
+import skysim.DBActor._
+import skysim.Log._
 
 import scala.collection.mutable.ListBuffer
 
@@ -20,13 +21,11 @@ object DBActor {
                      password: String = "root"
                    )
 
-  case class Sql(
-                  sql: String
-                )
+  object InitDbDone
 
-  case class SqlResult(
-                        results: List[Map[String, Any]], affected: Int
-                      )
+  case class ExecSql(sql: String)
+
+  case class SqlResult(results: List[Map[String, Any]], affected: Int)
 
   val setupSQL: String =
     """
@@ -47,24 +46,18 @@ CREATE TABLE `skysim` (
 drop table if exists skysim_jobs;
 
 CREATE TABLE `skysim_jobs` (
-  `job` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `job` varchar(255) NOT NULL,
   `states` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   PRIMARY KEY (`job`)
 );
 
-insert into skysim_jobs values(
+insert into skysim_jobs values
 ('lumberjack', 'idle, chopping, eating, selling, sleeping, idle'),
-('citizen',    'idle, shopping, eating, sleeping, idle')
-);
+('citizen',    'idle, buying, eating, sleeping, idle'),
+('alchemist',  'idle, selling, eating, collecting, sleeping, idle'),
+('mage',       'idle, studying, eating, practicing, sleeping, idle'),
+('merchant',   'idle, selling, eating, sleeping, idle');
 """
-  //merchant
-
-  val insert: String =
-    """
-  INSERT INTO skysim (`name`, `parent`, `state`, `x`, `y`, `data`, `timestamp`)
-  VALUES ('Uriel', 'whiterun', 'idle', '0', '2', '[]', '42');
-"""
-
 }
 
 class DBActor extends SimActor {
@@ -76,6 +69,10 @@ class DBActor extends SimActor {
     )
 
   def r(name: String) = "'" + name.replace("'", "''") + "'"
+
+  def m(data: Map[String, Int]): String = r(
+    data.toSeq.map(x => x._2 + ":" + x._1).mkString("|")
+  )
 
   override def receive: Receive = {
     case i@InitDb(url, driver, username, password) =>
@@ -102,11 +99,12 @@ class DBActor extends SimActor {
       } finally {
         connection.close()
       }
+      sender ! InitDbDone
 
     case StoreDb(seq) =>
       val now = System.currentTimeMillis
       val values = seq.map { x =>
-        "(" + r(x.name) + ", " + r(x.city) + ", " + r(x.state) + ", " + x.x + ", " + x.y + ", " + r(x.data) + ", " + now + ")"
+        "(" + r(x.name) + ", " + r(x.city) + ", " + r(x.state) + ", " + x.x + ", " + x.y + ", " + m(x.data) + ", " + now + ")"
       }.mkString(", ")
 
       val sql =
@@ -115,26 +113,14 @@ INSERT INTO skysim (parent, name, state, x, y, data, timestamp)
 VALUES $values
 ON DUPLICATE KEY UPDATE parent=parent,x=x,y=y,state=state,data=data,timestamp=timestamp;
           """
-      this.self ! Verb(sql)
+      this.self ! ExecSql(sql)
 
-    case Verb(sql) =>
+    case ExecSql(sql) =>
       try {
         val statement = connection.createStatement
         println(sql)
         if (sql.toLowerCase.startsWith("select ")) {
-          val rs = statement.executeQuery(sql)
-          val meta = rs.getMetaData
-          val fields = 1.to(meta.getColumnCount).map(i =>
-            meta.getColumnName(i)
-          ).toList
-          var i = 0
-          val buf = ListBuffer[Map[String, Any]]()
-          while (rs.next) {
-            val res = fields.map(x => x -> rs.getObject(x))
-            buf += res.toMap
-            println(i + ": " + res.map { case (a, b) => a + " -> " + b }.mkString(", "))
-            i += 1
-          }
+          val buf: ListBuffer[Map[String, Any]] = execSql(sql, statement)
           sender() ! SqlResult(buf.toList, 0)
 
         } else {
@@ -149,6 +135,25 @@ ON DUPLICATE KEY UPDATE parent=parent,x=x,y=y,state=state,data=data,timestamp=ti
         connection.close()
       }
 
+    case SqlResult(_, _) => ()
+
     case other => sys.error(this.self.path + " UNKNOWN " + other)
+  }
+
+  def execSql(sql: String, statement: Statement): ListBuffer[Map[String, Any]] = {
+    val rs = statement.executeQuery(sql)
+    val meta = rs.getMetaData
+    val fields = 1.to(meta.getColumnCount).map(i =>
+      meta.getColumnName(i)
+    ).toList
+    var i = 0
+    val buf = ListBuffer[Map[String, Any]]()
+    while (rs.next) {
+      val res = fields.map(x => x -> rs.getObject(x))
+      buf += res.toMap
+      println(i + ": " + res.map { case (a, b) => a + " -> " + b }.mkString(", "))
+      i += 1
+    }
+    buf
   }
 }

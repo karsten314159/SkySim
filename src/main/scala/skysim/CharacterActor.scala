@@ -1,42 +1,56 @@
 package skysim
 
+import Log._
 import akka.actor.{ActorRef, Props}
 import skysim.CharacterActor.InitChar
 import skysim.CityActor.{ChangePos, GetNearby, GetNearbyRes}
+import skysim.JobActor.{GetJob, ReceiveJob}
 
 case class CharState(
                       city: String, name: String, state: String, x: Int, y: Int,
-                      data: String
+                      data: Map[String, Int]
                     )
 
 object CharacterActor {
   def props: Props = Props(new CharacterActor)
 
-  case class InitChar(num: Int, parent: ActorRef)
+  case class InitChar(num: Int, parent: ActorRef, state: CharState, job: ActorRef)
 
 }
 
 class CharacterActor extends SimActor {
   var parent: ActorRef = _
   //var pos: (Int, Int) = _
-  //var state: CharState = _
+  var state: CharState = _
+  var jobName: String = _
+  var states: List[String] = _
 
   override def receive: Receive = {
-    case InitChar(num: Int, parent: ActorRef) =>
+    case InitChar(num, parent, state, job) =>
       this.parent = parent
-    /*this.state = CharState(
-      "cit" + num, parent.path.name, "idle", pos._1, pos._2
-    )*/
+      job ! GetJob(num)
+
+      this.state = state
 
     // println(s"char init " + this)
 
     case Verb("breakfast") =>
-      parent ! GetNearby(this.self) //, pos)
+      parent ! GetNearby(self)
 
-    case GetNearbyRes(selfState, other, otherState, dist) =>
+    case ReceiveJob(jobName, states) =>
+      this.jobName = jobName
+      this.states = states
+      state = state.copy(
+        state = states.head, data = state.data + (jobName -> 0)
+      )
+      parent ! ChangePos(self, state)
+
+    case GetNearbyRes(other, otherState, dist) =>
       println(s"char " + this + " eats breakfast with " + other.path.name + ", d:" + dist)
-      parent ! ChangePos(self, selfState.copy(data = "breakfast with " + other.path.name))
+      state = state.copy(data = state.data + ("breakfast with " + other.path.name -> 1))
 
-    case other => sys.error(this.self.path + " UNKNOWN " + other)
+      parent ! ChangePos(self, state)
+
+    case other => sys.error(self.path + " UNKNOWN " + other)
   }
 }
