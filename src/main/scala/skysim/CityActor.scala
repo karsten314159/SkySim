@@ -76,6 +76,11 @@ class CityActor extends SimActor {
         cha._1 ! v
       }
 
+    case v@Verb("step") =>
+      citizens foreach { cha =>
+        cha._1 ! v
+      }
+
     case ChangePos(ac: ActorRef, p: CharState) =>
       citizens.update(ac, p)
 

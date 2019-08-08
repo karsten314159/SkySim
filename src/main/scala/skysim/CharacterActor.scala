@@ -34,6 +34,11 @@ class CharacterActor extends SimActor {
 
     // println(s"char init " + this)
 
+    case Verb("step") =>
+      val ind = states.indexOf(state.state)
+      state = state.copy(state = states(ind + 1 % states.length))
+      parent ! ChangePos(self, state)
+
     case Verb("breakfast") =>
       parent ! GetNearby(self)
 
