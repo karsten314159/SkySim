@@ -21,9 +21,6 @@ class Tests extends Specification {
 
       Program.main(Array(url, username, password))
 
-      println("Actors asked: " + new Date())
-      Thread.sleep(30000)
-
       println("Test done: " + new Date())
       true
     }

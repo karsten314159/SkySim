@@ -83,6 +83,19 @@ insert into skysim_cities (name, population, nextTo, directionInDeg, dist) value
  ("Morthal", 450, "Whiterun", 9, 100),
  ("Dawnstar", 450, "Whiterun", 9, 100),
  ("Winterhold", 450, "Whiterun", 100, 100);
+
+
+
+ drop table if exists skyrim_system;
+
+ CREATE TABLE `skyrim_system` (
+    `wait` bigint(22) NOT NULL DEFAULT 0,
+    `lastRun` bigint(22) NOT NULL DEFAULT 0
+ );
+
+ insert into skyrim_system (wait) values
+ (10000);
+
 """
 }
 
