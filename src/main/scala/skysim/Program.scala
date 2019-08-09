@@ -67,6 +67,7 @@ object Program {
 
     println("Booting up db...")
 
+    var wait = 0
     db.tell(InitDb(username = username, password = password, url = url), ThenDo.system {
 
       println("Booting up job definitions...")
@@ -80,6 +81,7 @@ object Program {
       System.exit(1)*/
 
         println("Booting up city definitions...")
+
 
         db.tell(ExecSql("select * from skysim_cities"), ThenDo.systemCallback { case SqlResult(res, _) =>
 
@@ -111,14 +113,10 @@ object Program {
               println("last run set: " + a)
             })
 
-            var wait = 0
             db.tell(ExecSql("select wait from skyrim_system"), ThenDo.systemCallback { case SqlResult(r, _) =>
               wait = r.head("wait").toString.toInt
 
             })
-            Thread.sleep(2000)
-            println("got wait: " + wait)
-            return wait
 
           } else {
             s"""
@@ -153,11 +151,13 @@ Commands:
               system.terminate
             }
 
-            return 0
           }
         })
       })
     })
+    Thread.sleep(12000)
+    println("got wait: " + wait)
+    return wait
   }
 
   def main(args: Array[String]): Unit = {
