@@ -104,9 +104,9 @@ object Program {
 
           if (args.nonEmpty) {
             citiesImp foreach { c =>
-              c.tell(Verb("step"), ThenDo.system {
-                c ! Verb("save")
-              })
+              c ! Verb("step")
+              Thread.sleep(5000)
+              c ! Verb("save")
             }
 
             db.tell(ExecSql("update skyrim_system set lastRun = " + System.currentTimeMillis), ThenDo.systemCallback { case SqlResult(_, a) =>

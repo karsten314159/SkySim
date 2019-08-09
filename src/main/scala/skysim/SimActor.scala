@@ -1,6 +1,6 @@
 package skysim
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
 
 case class Verb(string: String)
 
