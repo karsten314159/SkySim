@@ -10,6 +10,7 @@ import skysim.JobActor.InitJobs
 import skysim.Log._
 
 import scala.io.StdIn
+import scala.util.{Failure, Success, Try}
 
 object ThenDo {
 
@@ -44,18 +45,26 @@ object Program extends App {
   println("Booting up actor system...")
   implicit val system = ActorSystem("skysim")
 
-  val prop = new Properties
-  prop.load(new InputStreamReader(new FileInputStream("secret.properties")))
+  val (url, username, password) = Try {
+    val prop = new Properties
+    prop.load(new InputStreamReader(new FileInputStream("secret.properties")))
+
+    (prop.getProperty("url"),
+      prop.getProperty("username"),
+      prop.getProperty("password"))
+  } match {
+    case Failure(x) =>
+      x.printStackTrace()
+      (args(0), args(1), args(2))
+    case Success(x) =>
+      x
+  }
 
   val db = system.actorOf(DBActor.props, "db")
 
   println("Booting up db...")
 
-  db.tell(InitDb(
-    username = prop.getProperty("username"),
-    password = prop.getProperty("password"),
-    url = prop.getProperty("url")
-  ), ThenDo.system {
+  db.tell(InitDb(username, password, url), ThenDo.system {
 
     println("Booting up job definitions...")
 

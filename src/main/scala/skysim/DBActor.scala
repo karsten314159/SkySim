@@ -33,12 +33,12 @@ drop table if exists skysim;
 
 CREATE TABLE `skysim` (
   `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `parent` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
-  `state` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `parent` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `state` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `x` bigint(11) NOT NULL DEFAULT 0,
   `y` bigint(11) NOT NULL DEFAULT 0,
-  `data` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `data` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
   `timestamp` bigint(22) NOT NULL,
   PRIMARY KEY (`id`)
 );
@@ -47,7 +47,9 @@ drop table if exists skysim_jobs;
 
 CREATE TABLE `skysim_jobs` (
   `job` varchar(255) NOT NULL,
-  `states` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `states` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `minpopulation` bigint(22) NOT NULL DEFAULT 0,
+  `maxpercity` bigint(22) NOT NULL DEFAULT 0,
   PRIMARY KEY (`job`)
 );
 
