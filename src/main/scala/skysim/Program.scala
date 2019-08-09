@@ -46,6 +46,7 @@ object Program extends App {
   implicit val system = ActorSystem("skysim")
 
   val (url, username, password) = Try {
+    println("Load props...")
     val prop = new Properties
     prop.load(new InputStreamReader(new FileInputStream("secret.properties")))
 
@@ -78,19 +79,12 @@ object Program extends App {
 
       println("Booting up city definitions...")
 
-      db.tell(ExecSql("select * from skysim"), ThenDo.systemCallback { case SqlResult(res, _) =>
+      db.tell(ExecSql("select * from skysim_cities"), ThenDo.systemCallback { case SqlResult(res, _) =>
 
         println("cit" + res.size)
 
-        val citiesDef: List[(String, Int)] = List(
-          "Riften" -> 450,
-          "Windhelm" -> 450,
-          "Whiterun" -> 450,
-          "Markarth" -> 450,
-          "Solitude" -> 450,
-          "Morthal" -> 450,
-          "Dawnstar" -> 450,
-          "Winterhold" -> 450
+        val citiesDef: List[(String, Int)] = res.toList.map(row =>
+          row("name").toString -> row("population").toString.toInt
         )
 
         val citiesImp: List[ActorRef] =

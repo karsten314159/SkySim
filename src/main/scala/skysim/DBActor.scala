@@ -33,15 +33,16 @@ object DBActor {
 drop table if exists skysim;
 
 CREATE TABLE `skysim` (
-  `id` bigint(11) NOT NULL AUTO_INCREMENT,
-  `name` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `parent` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `state` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
-  `x` bigint(11) NOT NULL DEFAULT 0,
-  `y` bigint(11) NOT NULL DEFAULT 0,
-  `data` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL DEFAULT '',
+  `name` varchar(300) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `parent` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `state` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `type` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  `attr` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL default '',
+  `x` bigint(11) NOT NULL DEFAULT '0',
+  `y` bigint(11) NOT NULL DEFAULT '0',
+  `data` text CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `timestamp` bigint(22) NOT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`name`)
 );
 
 drop table if exists skysim_jobs;
@@ -60,6 +61,28 @@ insert into skysim_jobs (job, minpopulation, maxpercity, states) values
 ('alchemist',  0, 0, 'idle, selling, eating, collecting, sleeping, idle'),
 ('mage',       0, 0, 'idle, studying, eating, practicing, sleeping, idle'),
 ('merchant',   0, 0, 'idle, selling, eating, sleeping, idle');
+
+
+drop table if exists skysim_cities;
+
+CREATE TABLE `skysim_cities` (
+  `name` varchar(255) NOT NULL,
+  `population` bigint(22) NOT NULL DEFAULT 0,
+  `nextTo` varchar(255) NOT NULL DEFAULT '',
+  `directionInDeg` bigInt(255) NOT NULL DEFAULT 90,
+  `dist` bigInt(255) NOT NULL DEFAULT 100,
+  PRIMARY KEY (`name`)
+);
+
+insert into skysim_cities (name, population, nextTo, directionInDeg, dist) values
+ ("Riften", 450, "Whiterun", 9, 100),
+ ("Windhelm", 450, "Whiterun", 9, 100),
+ ("Whiterun", 450, "Whiterun", 9, 100),
+ ("Markarth", 450, "Whiterun", 9, 100),
+ ("Solitude", 450, "Whiterun", 9, 100),
+ ("Morthal", 450, "Whiterun", 9, 100),
+ ("Dawnstar", 450, "Whiterun", 9, 100),
+ ("Winterhold", 450, "Whiterun", 100, 100);
 """
 }
 
@@ -70,7 +93,7 @@ class DBActor extends SimActor {
 
     val d = new com.mysql.cj.jdbc.Driver
     val p = new Properties
-    p.setProperty("username", this.connectionData.password)
+    p.setProperty("user", this.connectionData.username)
     p.setProperty("password", this.connectionData.password)
     d.connect(
       this.connectionData.url, p

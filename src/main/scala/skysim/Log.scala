@@ -18,8 +18,8 @@ object Log {
           className.substring(className.indexOf(".") + 1)
         else
           className.substring(className.indexOf(".") + 1, end)
-      Logger.root.logp(java.util.logging.Level.INFO, c, ":" + line,
-        String.valueOf(msg))
+      //Logger.root.logp(java.util.logging.Level.INFO, c, ":" + line, String.valueOf(msg))
+      Predef.println("[INFO] " + c + ":" + line + "  " + msg)
     }
   }
 
