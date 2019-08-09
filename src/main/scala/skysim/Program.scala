@@ -55,7 +55,8 @@ object Program extends App {
       prop.getProperty("password"))
   } match {
     case Failure(x) =>
-      x.printStackTrace()
+      println(x)
+
       (args(0), args(1), args(2))
     case Success(x) =>
       x
@@ -114,17 +115,20 @@ Commands:
 > sql:truncate table skysim
 > breakfast
 > save
+> step
     """.split("\n").foreach(x => println(x))
 
           var line = ""
           try {
             while ( {
-              line = StdIn.readLine("> ")
+              line = StdIn.readLine()
               line != ""
             }) {
               // println("CMD: <" + line + ">, len " + line.length)
               if (line.startsWith("sql:")) {
-                db ! ExecSql(line.substring("sql:".length))
+                db.tell(ExecSql(line.substring("sql:".length)), ThenDo.systemCallback {
+                  case SqlResult(x, a) => println("sql:<command> done")
+                })
               } else {
                 citiesImp foreach { c =>
                   c ! Verb(line)

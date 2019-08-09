@@ -14,9 +14,16 @@ class Tests extends Specification {
       val url = System.getenv("url")
       val username = System.getenv("username")
       val password = System.getenv("password")
+
+      assert(url != null, "systemenv url not set")
+      assert(username != null, "systemenv username not set")
+      assert(password != null, "systemenv password not set")
+
       Program.main(Array(url, username, password))
+
       println("Actors asked: " + new Date())
       Thread.sleep(30000)
+
       println("Test done: " + new Date())
       true
     }

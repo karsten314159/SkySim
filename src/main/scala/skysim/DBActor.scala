@@ -93,6 +93,9 @@ class DBActor extends SimActor {
 
     val d = new com.mysql.cj.jdbc.Driver
     val p = new Properties
+    assert(this.connectionData != null, "InitDB was not sent")
+    assert(this.connectionData.username != null, "InitDB username was not sent")
+
     p.setProperty("user", this.connectionData.username)
     p.setProperty("password", this.connectionData.password)
     d.connect(
@@ -125,7 +128,7 @@ class DBActor extends SimActor {
         println("skysim: " + count)
       } catch {
         case e: Exception =>
-          e.printStackTrace()
+          println(e)
       } finally {
         connection.close()
       }
@@ -160,7 +163,7 @@ ON DUPLICATE KEY UPDATE parent=parent,x=x,y=y,state=state,data=data,timestamp=ti
         }
       } catch {
         case e: Exception =>
-          e.printStackTrace()
+          println(e)
       } finally {
         connection.close()
       }

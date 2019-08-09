@@ -19,7 +19,14 @@ object Log {
         else
           className.substring(className.indexOf(".") + 1, end)
       //Logger.root.logp(java.util.logging.Level.INFO, c, ":" + line, String.valueOf(msg))
-      Predef.println("[INFO] " + c + ":" + line + "  " + msg)
+      val lv =
+        msg match {
+          case _: Throwable =>
+            "ERROR"
+          case _ =>
+            "INFO"
+        }
+      Predef.println("[" + lv + "] " + c + ":" + line + "  " + msg)
     }
   }
 
