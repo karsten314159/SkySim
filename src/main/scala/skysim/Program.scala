@@ -107,6 +107,10 @@ object Program {
               })
             }
 
+            db.tell(ExecSql("update skyrim_system set lastRun = " + System.currentTimeMillis), ThenDo.systemCallback { case SqlResult(_, a) =>
+              println("last run set: " + a)
+            })
+
             db.tell(ExecSql("select wait from skyrim_system"), ThenDo.systemCallback { case SqlResult(r, _) =>
               val wait = r.head("wait").toString.toInt
               Thread.sleep(wait)
