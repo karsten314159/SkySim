@@ -42,7 +42,7 @@ object ThenDo {
 }
 
 object Program {
-  def run(args: Array[String]): Unit = {
+  def run(args: Array[String]): Int = {
     println("Booting up actor system...")
     implicit val system = ActorSystem("skysim")
 
@@ -111,10 +111,14 @@ object Program {
               println("last run set: " + a)
             })
 
+            var wait = 0
             db.tell(ExecSql("select wait from skyrim_system"), ThenDo.systemCallback { case SqlResult(r, _) =>
-              val wait = r.head("wait").toString.toInt
-              Thread.sleep(wait)
+              wait = r.head("wait").toString.toInt
+
             })
+            Thread.sleep(2000)
+            println("got wait: " + wait)
+            return wait
 
           } else {
             s"""
@@ -145,7 +149,11 @@ Commands:
                 }
               }
             }
-            finally system.terminate
+            finally {
+              system.terminate
+            }
+
+            return 0
           }
         })
       })

@@ -19,7 +19,8 @@ class Tests extends Specification {
       assert(username != null, "systemenv username not set")
       assert(password != null, "systemenv password not set")
 
-      Program.main(Array(url, username, password))
+      val wait = Program.run(Array(url, username, password))
+      Thread.sleep(wait)
 
       println("Test done: " + new Date())
       true

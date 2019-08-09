@@ -85,7 +85,6 @@ insert into skysim_cities (name, population, nextTo, directionInDeg, dist) value
  ("Winterhold", 450, "Whiterun", 100, 100);
 
 
-
  drop table if exists skyrim_system;
 
  CREATE TABLE `skyrim_system` (
