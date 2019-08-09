@@ -64,7 +64,7 @@ object Program extends App {
 
   println("Booting up db...")
 
-  db.tell(InitDb(username, password, url), ThenDo.system {
+  db.tell(InitDb(username = username, password = password, url = url), ThenDo.system {
 
     println("Booting up job definitions...")
 
@@ -104,7 +104,16 @@ object Program extends App {
       citiesImp foreach { x => x ! Verb("save") }
     }*/
 
-        s"""
+        Thread.sleep(1000)
+
+        if (args.nonEmpty) {
+          citiesImp foreach { c =>
+            c.tell(Verb("step"), ThenDo.system {
+              c ! Verb("save")
+            })
+          }
+        } else {
+          s"""
 >>> Press ENTER to exit <<<
 Or enter a command to be executed across: ${citiesDef.map(_._1).mkString(", ")}
 Commands:
@@ -113,25 +122,24 @@ Commands:
 > save
     """.split("\n").foreach(x => println(x))
 
-        Thread.sleep(1000)
-
-        var line = ""
-        try {
-          while ( {
-            line = StdIn.readLine("> ")
-            line != ""
-          }) {
-            // println("CMD: <" + line + ">, len " + line.length)
-            if (line.startsWith("sql:")) {
-              db ! ExecSql(line.substring("sql:".length))
-            } else {
-              citiesImp foreach { c =>
-                c ! Verb(line)
+          var line = ""
+          try {
+            while ( {
+              line = StdIn.readLine("> ")
+              line != ""
+            }) {
+              // println("CMD: <" + line + ">, len " + line.length)
+              if (line.startsWith("sql:")) {
+                db ! ExecSql(line.substring("sql:".length))
+              } else {
+                citiesImp foreach { c =>
+                  c ! Verb(line)
+                }
               }
             }
           }
+          finally system.terminate
         }
-        finally system.terminate
       })
     })
   })

@@ -1,6 +1,7 @@
 package skysim
 
 import java.sql.{Connection, DriverManager, Statement}
+import java.util.Properties
 
 import akka.actor.Props
 import com.mysql.cj.jdbc.NonRegisteringDriver
@@ -53,22 +54,28 @@ CREATE TABLE `skysim_jobs` (
   PRIMARY KEY (`job`)
 );
 
-insert into skysim_jobs values
-('lumberjack', 'idle, chopping, eating, selling, sleeping, idle'),
-('citizen',    'idle, buying, eating, sleeping, idle'),
-('alchemist',  'idle, selling, eating, collecting, sleeping, idle'),
-('mage',       'idle, studying, eating, practicing, sleeping, idle'),
-('merchant',   'idle, selling, eating, sleeping, idle');
+insert into skysim_jobs (job, minpopulation, maxpercity, states) values
+('lumberjack', 0, 0, 'idle, chopping, eating, selling, sleeping, idle'),
+('citizen',    0, 0, 'idle, buying, eating, sleeping, idle'),
+('alchemist',  0, 0, 'idle, selling, eating, collecting, sleeping, idle'),
+('mage',       0, 0, 'idle, studying, eating, practicing, sleeping, idle'),
+('merchant',   0, 0, 'idle, selling, eating, sleeping, idle');
 """
 }
 
 class DBActor extends SimActor {
   var connectionData: InitDb = _
 
-  def connection: Connection =
-    DriverManager.getConnection(
-      this.connectionData.url, this.connectionData.username, this.connectionData.password
+  def connection: Connection = {
+
+    val d = new com.mysql.cj.jdbc.Driver
+    val p = new Properties
+    p.setProperty("username", this.connectionData.password)
+    p.setProperty("password", this.connectionData.password)
+    d.connect(
+      this.connectionData.url, p
     )
+  }
 
   def r(name: String) = "'" + name.replace("'", "''") + "'"
 
@@ -81,18 +88,16 @@ class DBActor extends SimActor {
       this.connectionData = i
 
       try {
-        //Class.forName(driver)
-        //
-        DriverManager.registerDriver(new NonRegisteringDriver)
+        //DriverManager.registerDriver(
+        //)
 
         val statement = connection.createStatement
-        val rs = statement.executeQuery("select count(*) from skysim;") //SELECT host, user FROM user")
+
+        val rs = statement.executeQuery("select count(*) from skysim;")
+
         var count = 0
         while (rs.next) {
           count += 1
-          //val host = rs.getString("host")
-          //val user = rs.getString("user")
-          //println("host = %s, user = %s".format(host, user))
         }
         println("skysim: " + count)
       } catch {
