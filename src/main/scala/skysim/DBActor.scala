@@ -149,7 +149,7 @@ class DBActor extends SimActor {
     case StoreDb(seq) =>
       val now = System.currentTimeMillis
       val values = seq.map { x =>
-        "(" + r(x.name) + ", " + r(x.city) + ", " + r(x.state) + ", " + x.x + ", " + x.y + ", " + m(x.data) + ", " + now + ")"
+        "(" + r(x.name) + ", " + r(x.city) + ", " + r(x.status) + ", " + x.x + ", " + x.y + ", " + m(x.data) + ", " + now + ")"
       }.mkString(", ")
 
       val sql =

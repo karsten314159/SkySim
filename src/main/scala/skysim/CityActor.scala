@@ -72,21 +72,17 @@ class CityActor extends SimActor {
 
       println(this + " done")
 
-    case v@Verb("breakfast") =>
-      citizens foreach { cha =>
-        cha._1 ! v
-      }
-
-    case v@Verb("step") =>
+    case v@Verb("step" | "breakfast") =>
       citizens foreach { cha =>
         cha._1 ! v
       }
 
     case ChangePos(ac: ActorRef, p: CharState) =>
       citizens.update(ac, p)
+      this.db ! StoreDb(Seq(p))
 
-    case Verb("save") =>
-      this.db ! StoreDb(citizens.values.toSeq)
+    /*case Verb("save") =>
+      this.db ! StoreDb(citizens.values.toSeq)*/
 
     case SqlResult(_, _) =>
       println("saved")

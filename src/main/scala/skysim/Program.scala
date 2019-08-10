@@ -105,8 +105,6 @@ object Program {
           if (args.nonEmpty) {
             citiesImp foreach { c =>
               c ! Verb("step")
-              Thread.sleep(5000)
-              c ! Verb("save")
             }
 
             db.tell(ExecSql("update skyrim_system set lastRun = " + System.currentTimeMillis), ThenDo.systemCallback { case SqlResult(_, a) =>
@@ -115,7 +113,6 @@ object Program {
 
             db.tell(ExecSql("select wait from skyrim_system"), ThenDo.systemCallback { case SqlResult(r, _) =>
               wait = r.head("wait").toString.toInt
-
             })
 
           } else {
