@@ -4,4 +4,3 @@ jdk:
 scala:
    - 2.13.0
 script: sbt test
-
