@@ -3,12 +3,14 @@ package skysim
 import java.sql.{Connection, DriverManager, Statement}
 import java.util.Properties
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import com.mysql.cj.jdbc.NonRegisteringDriver
-import skysim.DBActor._
+import skysim.DBActor.{InitDb, _}
 import skysim.Log._
 
+import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.util.Random
 
 object DBActor {
   def props: Props = Props(new DBActor)
@@ -98,32 +100,38 @@ insert into skysim_cities (name, population, nextTo, directionInDeg, dist) value
 """
 }
 
+case class DBActorState(
+                         connectionData: InitDb
+                       )
+
 class DBActor extends SimActor {
-  var connectionData: InitDb = _
+  override def receive: Receive =
+    withState(DBActorState(null))
 
-  def connection: Connection = {
-
+  def getConnection(connectionData: InitDb): Connection = {
     val d = new com.mysql.cj.jdbc.Driver
     val p = new Properties
-    assert(this.connectionData != null, "InitDB was not sent")
-    assert(this.connectionData.username != null, "InitDB username was not sent")
+    assert(connectionData != null, "InitDB was not sent")
+    assert(connectionData.username != null, "InitDB username was not sent")
 
-    p.setProperty("user", this.connectionData.username)
-    p.setProperty("password", this.connectionData.password)
+    p.setProperty("user", connectionData.username)
+    p.setProperty("password", connectionData.password)
     d.connect(
-      this.connectionData.url, p
+      connectionData.url, p
     )
   }
 
-  def r(name: String) = "'" + name.replace("'", "''") + "'"
+  def r(name: String): String = "'" + name.replace("'", "''") + "'"
 
   def m(data: Map[String, Int]): String = r(
     data.toSeq.map(x => x._2 + ":" + x._1).mkString("|")
   )
 
-  override def receive: Receive = {
+
+  def withState(actorState: DBActorState): Receive = {
+
     case i@InitDb(url, driver, username, password) =>
-      this.connectionData = i
+      val connection = getConnection(i)
 
       try {
         //DriverManager.registerDriver(
@@ -145,6 +153,7 @@ class DBActor extends SimActor {
         connection.close()
       }
       sender ! InitDbDone
+      context become withState(actorState.copy(connectionData = i))
 
     case StoreDb(seq) =>
       val now = System.currentTimeMillis
@@ -158,9 +167,10 @@ INSERT INTO skysim (parent, name, state, x, y, data, timestamp)
 VALUES $values
 ON DUPLICATE KEY UPDATE parent=parent,x=x,y=y,state=state,data=data,timestamp=timestamp;
           """
-      this.self ! ExecSql(sql)
+      this.self.tell(ExecSql(sql), sender)
 
     case ExecSql(sql) =>
+      val connection = getConnection(actorState.connectionData)
       try {
         val statement = connection.createStatement
         println(sql)

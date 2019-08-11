@@ -1,34 +1,42 @@
 package skysim
 
 import akka.actor.{ActorRef, Props}
-import skysim.DBActor.{ExecSql, SqlResult}
+import skysim.DBActor.{ExecSql, InitDb, SqlResult}
 import skysim.JobActor.{GetJob, InitJobs, InitJobsDone, ReceiveJob}
 
 import scala.util.Random
 
-class JobActor extends SimActor {
-  var jobs: Map[String, List[String]] = _
-  var db: ActorRef = _
-  var initSender: ActorRef = _
+case class JobActorState(
+                          jobs: Map[String, List[String]],
+                          db: ActorRef,
+                          initSender: ActorRef
+                        )
 
-  override def receive: Receive = {
+
+class JobActor extends SimActor {
+
+  override def receive: Receive =
+    withState(JobActorState(Map.empty, null, null))
+
+
+  def withState(actorState: JobActorState): Receive = {
     case InitJobs(db) =>
-      this.db = db
-      initSender = sender
+
       db ! ExecSql("select job, states from skysim_jobs")
+      context become withState(actorState.copy(db = db, initSender = sender))
 
     case GetJob(seed) =>
       val rnd = new Random(seed)
-      val value = jobs.toSeq(rnd.nextInt(jobs.size))
+      assert(actorState.jobs.nonEmpty, "jobs was empty, InitJobs called?")
+      val value = actorState.jobs.toSeq(rnd.nextInt(actorState.jobs.size))
       sender ! ReceiveJob(value._1, value._2)
 
     case SqlResult(results, _) =>
       val value: List[(String, List[String])] = results.map(row =>
         row("job").toString -> row("states").toString.split(", ").toList
       )
-      this.jobs = value.toMap
-
-      initSender ! InitJobsDone
+      actorState.initSender ! InitJobsDone
+      context become withState(actorState.copy(jobs = value.toMap))
 
     case other => sys.error(this.self.path + " UNKNOWN " + other)
   }

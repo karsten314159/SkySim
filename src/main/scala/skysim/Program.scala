@@ -82,7 +82,6 @@ object Program {
 
         println("Booting up city definitions...")
 
-
         db.tell(ExecSql("select * from skysim_cities"), ThenDo.systemCallback { case SqlResult(res, _) =>
 
           val citiesDef: List[(String, Int)] = res.toList.map(row =>

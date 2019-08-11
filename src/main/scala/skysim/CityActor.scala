@@ -12,7 +12,7 @@ import scala.util.Random
 object CityActor {
   def props: Props = Props(new CityActor)
 
-  case class InitCity(numCitizens: Int, db: ActorRef, job: ActorRef)
+  case class InitCity(numCitizens: Int, db: ActorRef, jobs: ActorRef)
 
   case class ChangePos(ac: ActorRef, state: CharState)
 
@@ -24,13 +24,19 @@ object CityActor {
 
 }
 
-class CityActor extends SimActor {
-  var job: ActorRef = _
-  var citizens: mutable.Map[ActorRef, CharState] = mutable.Map.empty
-  var db: ActorRef = _
-  val names: mutable.Set[String] = mutable.Set[String]()
+case class CityActorState(
+                           db: ActorRef,
+                           jobs: ActorRef,
+                           citizens: Map[ActorRef, CharState]
+                         )
 
-  def name(random: Random): String = {
+class CityActor extends SimActor {
+
+  override def receive: Receive =
+    withState(CityActorState(null, null, Map.empty))
+
+
+  def name(random: Random, names: mutable.Set[String]): String = {
     val vowels = "AEIOU"
     val consonants = "BCDFGHJKLMNPQRSTVWYZ"
     val name =
@@ -48,38 +54,37 @@ class CityActor extends SimActor {
     res.charAt(0) + res.substring(1).toLowerCase
   }
 
-  override def receive: Receive = {
-    case InitCity(size, db, job) =>
-      this.db = db
-      this.job = job
-
+  def withState(actorState: CityActorState): Receive = {
+    case InitCity(size, db, jobs) =>
       println(s"init city " + this + " with " + size + " citizens")
+      val names: mutable.Set[String] = mutable.Set[String]()
+      val citizens =
+        0.until(size) map { i =>
+          val rnd = new Random(i)
+          val nameVal = name(rnd, names)
+          val (x, y) = (rnd.nextInt(100), rnd.nextInt(100))
 
-      0.until(size) foreach { i =>
-        val rnd = new Random(i)
-        val nameVal = name(rnd)
-        val (x, y) = (rnd.nextInt(100), rnd.nextInt(100))
+          val c = context.actorOf(CharacterActor.props, nameVal)
+          val p = CharState(
+            nameVal, this.self.path.name, "idle", x, y, Map.empty
+          )
+          c ! InitChar(i, this.self, p, jobs)
+          c -> p
+        }
 
-        val c = context.actorOf(CharacterActor.props, nameVal)
-        this.citizens += c -> CharState(
-          nameVal, this.self.path.name, "idle", x, y, Map.empty
-        )
-      }
-
-      this.citizens.zipWithIndex foreach { case ((cha, p), i) =>
-        cha ! InitChar(i, this.self, p, job)
-      }
-
-      println(this + " done")
+      context become withState(actorState.copy(
+        citizens = citizens.toMap, db = db, jobs = jobs
+      ))
 
     case v@Verb("step" | "breakfast") =>
-      citizens foreach { cha =>
+      actorState.citizens foreach { cha =>
         cha._1 ! v
       }
 
     case ChangePos(ac: ActorRef, p: CharState) =>
-      citizens.update(ac, p)
-      this.db ! StoreDb(Seq(p))
+
+      actorState.db ! StoreDb(Seq(p))
+      context become withState(actorState.copy(citizens = actorState.citizens + (ac -> p)))
 
     /*case Verb("save") =>
       this.db ! StoreDb(citizens.values.toSeq)*/
@@ -88,9 +93,9 @@ class CityActor extends SimActor {
       println("saved")
 
     case GetNearby(requester: ActorRef) =>
-      val pos: CharState = citizens(requester)
+      val pos: CharState = actorState.citizens(requester)
       val (res: ActorRef, d: Double) =
-        citizens map { case (other: ActorRef, p: CharState) =>
+        actorState.citizens map { case (other: ActorRef, p: CharState) =>
           if (other == requester)
             other -> Double.PositiveInfinity
           else {
@@ -99,7 +104,7 @@ class CityActor extends SimActor {
             other -> (dy * dy + dx * dx).toDouble
           }
         } minBy { case (_, p: Double) => p }
-      sender ! GetNearbyRes(res, citizens(res), Math.sqrt(d))
+      sender ! GetNearbyRes(res, actorState.citizens(res), Math.sqrt(d))
 
     case other => sys.error(this.self.path + " UNKNOWN <" + other + ">")
   }

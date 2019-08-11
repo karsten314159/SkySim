@@ -4,7 +4,7 @@ import akka.event.jul.Logger
 //import sun.misc.{JavaLangAccess, SharedSecrets}
 
 object Log {
-  final val dev: Boolean = false
+  final val dev: Boolean = true
 
   def println(msg: Any): Unit = {
     if (dev) {
