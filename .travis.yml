@@ -1,0 +1,6 @@
+language: scala
+jdk:
+  - oraclejdk12
+scala:
+   - 2.13.0
+script: sbt test
